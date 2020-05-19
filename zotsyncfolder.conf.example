@@ -1,0 +1,16 @@
+#-*-conf-*-
+
+[DEFAULT]
+user_id = 1234567
+api_key = API_KEY
+use_webdav = true (false로 하면 동작 보증 못함)
+webdav_hostname = WebDAV 서버 주소 (http://서버주소:12345)
+webdav_login = WebDAV 아이디
+webdav_password = WebDAV 비번
+webdav_zotero_url = WebDAV상의 Zotero 폴더 경로 (aaa/bbb/zotero)
+zotero_folder = 컴퓨터에 있는 Zotero 폴더 경로 (~/Zotero)
+json_folder = db를 저장할 폴더
+output_folder = pdf들을 저장할 폴더
+target_ext_list = 동기화할 파일 확장자 (pdf 또는 pdf,html 등)
+load_from_cache = false (디버그용이니 유지)
+modified_diff_threshold_seconds = 60 (디버그용이니 유지)
