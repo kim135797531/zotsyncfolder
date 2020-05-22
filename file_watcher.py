@@ -196,6 +196,8 @@ def upload_changed_file(collection_metadatas, item_metadatas, keyset):
             print(attachment_file_name)
         else:
             print(result)
+            print('업로드 실패! 아마 동시에 동기화해서 깨진듯. 일단 걍 리턴함')
+            return
 
         # TODO: 보고한 것은 보고했다고 업데이트 하는거 여기서 해도 되나
         item_metadatas[keyset['attachment_key']]['new_modified'] = (attachment_file_mtime / 1000)
@@ -351,4 +353,4 @@ if __name__ == "__main__":
             print(f'[{time.ctime()}] 아이패드의 갱신 사항 변화 없음')
 
         # zotsyncfolder 파일 변화 감지 끝 ============================================
-        time.sleep(60)
+        time.sleep(5 * 60)
