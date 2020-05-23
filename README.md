@@ -58,12 +58,17 @@ Maybe I just ain't used to them but...
 * WebDAV에 연동한 Zotero (리눅스 머신)
 * Python 3과 잡다 패키지들
 * 네트워크 위치인 ZotSyncFolder에 접근 가능한 아이패드
+* Node.js
+  * npm install zotero
+  * npm install configparser
 
 ## 워크플로우
 * 리눅스 머신에서 construct_folder.py를 실행하면 리눅스의 Zotero 폴더(~/Zotero)에서
   ZotSyncFolder의 폴더로 전체 pdf를 복사하고, json형태로 db 비슷한 것을 만든다.
-* 이제 file_watcher.py를 틀어 둔다.
-  * Zotero에 새로운 논문 넣으면 1분에 한번씩 검사해서 ZotSyncFolder로 넣는다.
+* node zotero_notifier.js 로 PC측 갱신 알리미를 켜 둔다.
+  * Zotero에 새로운 논문 넣으면 소켓으로 데이터 받아서, ZotSyncFolder를 동작시킨다.
+* 마지막으로 동기화 프로그램인 file_watcher.py를 틀어 둔다.
+  * 소켓에서 데이터 오면, 새로운 논문을 ZotSyncFolder에 저장시킨다.
   * 아이패드에서 ZotSyncFolder에 있는 논문을 열심히 보고 메모한다.
   * 아이패드에서 그 파일을 저장한다 (보통 노트 앱들 자동 저장함)
   * 1분에 한번씩 검사해서 새로운 파일을 Zotero에 업로드한다.

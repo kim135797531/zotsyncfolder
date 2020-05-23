@@ -44,6 +44,7 @@ webdav_client = Client(options)
 global_metadata_json = f'{json_folder}/global_metadata.json'
 collection_metadatas_json = f'{json_folder}/collection_metadatas.json'
 item_metadatas_json = f'{json_folder}/item_metadatas.json'
+notifier_metadatas_json = f'{json_folder}/notifier_metadatas.json'
 
 
 # 일단 파일 변경 시각 보고, 뭔가 수상하면 md5 비교해서 최종적으로 판단하기
@@ -265,6 +266,62 @@ def update_last_modified_version(global_metadata):
     f.close()
 
 
+def pull_changed_list_from_zotero(global_metadata, collection_metadatas, item_metadatas):
+    modified_items = download_lists(f"{prefix}/items?since={global_metadata['last_modified_version']}", headers)
+
+    # 먼저 item들에 대해 확실히 끝냄 (collection을 알아야 나중에 폴더에 넣을 수 있음)
+    for item in modified_items:
+        if is_real_item(item):
+            item_key = item['key']
+            if item_key in item_metadatas and 'version' in item_metadatas[item_key]:
+                # 기존에 있던 항목
+                if set(item_metadatas[item_key]['collections']) != set(item['data']['collections']):
+                    # TODO: 컬렉션 정보 바뀜!! 아직 지원 안함. 프로그램 강종함.
+                    print("컬렉션 정보 바뀜!! 아직 지원 안함. 프로그램 강종함.")
+                    exit(1)
+                item_metadatas[item_key]['version'] = item['version']
+            else:
+                # 새로 추가된 항목
+                item_metadatas[item_key]['key'] = item['key']
+                item_metadatas[item_key]['version'] = item['version']
+                item_metadatas[item_key]['collections'] = item['data']['collections']
+
+    # item들 끝나면 attachment들에 대해 돌음
+    for item in modified_items:
+        if is_real_attachment(item, target_ext_list):
+            attachment_key = item['key']
+            if attachment_key in item_metadatas and 'version' in item_metadatas[attachment_key]:
+                # 기존에 있던 항목
+                parent_key = item['data']['parentItem']
+                if int(item_metadatas[attachment_key]['version']) < int(item['data']['version']):
+                    print("있던 PDF인데, 아이패드에서 바뀐게 아니라 원격에서 바뀜. 새로 다운받자")
+                    overwrite_one_file(collection_metadatas, item_metadatas, item)
+
+                item_metadatas[attachment_key]['version'] = item['version']
+                item_metadatas[attachment_key]['filename'] = item["data"]['filename']
+                item_metadatas[attachment_key]['md5'] = item["data"]['md5']
+            else:
+                # 새로 추가된 항목
+                parent_key = item['data']['parentItem']
+                item_metadatas[attachment_key]['key'] = item['key']
+                item_metadatas[attachment_key]['version'] = item['version']
+                item_metadatas[attachment_key]['filename'] = item["data"]['filename']
+                item_metadatas[attachment_key]['md5'] = item["data"]['md5']
+                item_metadatas[parent_key]['attachment_keys'].append(item['key'])
+                overwrite_one_file(collection_metadatas, item_metadatas, item)
+        else:
+            pass
+
+    if len(modified_items) > 0:
+        f = open(item_metadatas_json, 'w')
+        print(json.dumps(item_metadatas, indent=4), file=f)
+        f.close()
+        update_last_modified_version(global_metadata)
+        print(f'[{time.ctime()}] Zotero의 DB 갱신 사항 **업뎃 완료**')
+    else:
+        print(f'[{time.ctime()}] Zotero의 DB 갱신 사항 변화 없음')
+
+
 if __name__ == "__main__":
     global_metadata = json.load(open(global_metadata_json, 'r'))
 
@@ -277,61 +334,28 @@ if __name__ == "__main__":
         for child_key, child_values in parent_values.items():
             item_metadatas[parent_key][child_key] = child_values
 
+    if os.path.exists(notifier_metadatas_json):
+        notifier_metadatas = json.load(open(notifier_metadatas_json, 'r'))
+    else:
+        notifier_metadatas = {
+            'last_modified_version': global_metadata['last_modified_version']
+        }
+        f = open(notifier_metadatas_json, 'w')
+        print(json.dumps(notifier_metadatas, indent=4), file=f)
+        f.close()
+
     while True:
         # zotero 파일 변화 감지 시작 ============================================
-        modified_items = download_lists(f"{prefix}/items?since={global_metadata['last_modified_version']}", headers)
-
-        # 먼저 item들에 대해 확실히 끝냄 (collection을 알아야 나중에 폴더에 넣을 수 있음)
-        for item in modified_items:
-            if is_real_item(item):
-                item_key = item['key']
-                if item_key in item_metadatas and 'version' in item_metadatas[item_key]:
-                    # 기존에 있던 항목
-                    if set(item_metadatas[item_key]['collections']) != set(item['data']['collections']):
-                        # TODO: 컬렉션 정보 바뀜!! 아직 지원 안함. 프로그램 강종함.
-                        print("컬렉션 정보 바뀜!! 아직 지원 안함. 프로그램 강종함.")
-                        exit(1)
-                    item_metadatas[item_key]['version'] = item['version']
-                else:
-                    # 새로 추가된 항목
-                    item_metadatas[item_key]['key'] = item['key']
-                    item_metadatas[item_key]['version'] = item['version']
-                    item_metadatas[item_key]['collections'] = item['data']['collections']
-
-        # item들 끝나면 attachment들에 대해 돌음
-        for item in modified_items:
-            if is_real_attachment(item, target_ext_list):
-                attachment_key = item['key']
-                if attachment_key in item_metadatas and 'version' in item_metadatas[attachment_key]:
-                    # 기존에 있던 항목
-                    parent_key = item['data']['parentItem']
-                    if int(item_metadatas[attachment_key]['version']) < int(item['data']['version']):
-                        print("있던 PDF인데, 아이패드에서 바뀐게 아니라 원격에서 바뀜. 새로 다운받자")
-                        overwrite_one_file(collection_metadatas, item_metadatas, item)
-
-                    item_metadatas[attachment_key]['version'] = item['version']
-                    item_metadatas[attachment_key]['filename'] = item["data"]['filename']
-                    item_metadatas[attachment_key]['md5'] = item["data"]['md5']
-                else:
-                    # 새로 추가된 항목
-                    parent_key = item['data']['parentItem']
-                    item_metadatas[attachment_key]['key'] = item['key']
-                    item_metadatas[attachment_key]['version'] = item['version']
-                    item_metadatas[attachment_key]['filename'] = item["data"]['filename']
-                    item_metadatas[attachment_key]['md5'] = item["data"]['md5']
-                    item_metadatas[parent_key]['attachment_keys'].append(item['key'])
-                    overwrite_one_file(collection_metadatas, item_metadatas, item)
-            else:
-                pass
-
-        if len(modified_items) > 0:
-            f = open(item_metadatas_json, 'w')
-            print(json.dumps(item_metadatas, indent=4), file=f)
+        notifier_metadatas = json.load(open(notifier_metadatas_json, 'r'))
+        received_update_signal = int(global_metadata['last_modified_version']) < int(notifier_metadatas['last_modified_version'])
+        if received_update_signal:
+            pull_changed_list_from_zotero(global_metadata, collection_metadatas, item_metadatas)
+            notifier_metadatas = {
+                'last_modified_version': global_metadata['last_modified_version']
+            }
+            f = open(notifier_metadatas_json, 'w')
+            print(json.dumps(notifier_metadatas, indent=4), file=f)
             f.close()
-            update_last_modified_version(global_metadata)
-            print(f'[{time.ctime()}] Zotero의 DB 갱신 사항 **업뎃 완료**')
-        else:
-            print(f'[{time.ctime()}] Zotero의 DB 갱신 사항 변화 없음')
         # zotero 파일 변화 감지 끝 ============================================
 
         # zotsyncfolder 파일 변화 감지 시작 ============================================
@@ -353,4 +377,4 @@ if __name__ == "__main__":
             print(f'[{time.ctime()}] 아이패드의 갱신 사항 변화 없음')
 
         # zotsyncfolder 파일 변화 감지 끝 ============================================
-        time.sleep(5 * 60)
+        time.sleep(60)
