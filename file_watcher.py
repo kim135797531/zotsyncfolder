@@ -346,16 +346,21 @@ if __name__ == "__main__":
 
     while True:
         # zotero 파일 변화 감지 시작 ============================================
-        notifier_metadatas = json.load(open(notifier_metadatas_json, 'r'))
-        received_update_signal = int(global_metadata['last_modified_version']) < int(notifier_metadatas['last_modified_version'])
-        if received_update_signal:
-            pull_changed_list_from_zotero(global_metadata, collection_metadatas, item_metadatas)
-            notifier_metadatas = {
-                'last_modified_version': global_metadata['last_modified_version']
-            }
-            f = open(notifier_metadatas_json, 'w')
-            print(json.dumps(notifier_metadatas, indent=4), file=f)
-            f.close()
+        try:
+            notifier_metadatas = json.load(open(notifier_metadatas_json, 'r'))
+            if 'last_modified_version' in notifier_metadatas:
+                received_update_signal = int(global_metadata['last_modified_version']) < int(notifier_metadatas['last_modified_version'])
+                if received_update_signal:
+                    pull_changed_list_from_zotero(global_metadata, collection_metadatas, item_metadatas)
+                    notifier_metadatas = {
+                        'last_modified_version': global_metadata['last_modified_version']
+                    }
+                    f = open(notifier_metadatas_json, 'w')
+                    print(json.dumps(notifier_metadatas, indent=4), file=f)
+                f.close()
+        except JSONDecodeError:
+            print("notify metadata 읽기 실패. skip함")
+
         # zotero 파일 변화 감지 끝 ============================================
 
         # zotsyncfolder 파일 변화 감지 시작 ============================================
