@@ -124,6 +124,7 @@ __pycache__
 *.csv#
 .vscode/*
 zotsyncfolder.conf
+zotsyncfolder_local.conf
 zotsyncfolder_docker.conf
 json/
 output/

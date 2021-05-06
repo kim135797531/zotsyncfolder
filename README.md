@@ -72,7 +72,28 @@ Maybe I just ain't used to them but...
   * 아이패드에서 ZotSyncFolder에 있는 논문을 열심히 보고 메모한다.
   * 아이패드에서 그 파일을 저장한다 (보통 노트 앱들 자동 저장함)
   * 1분에 한번씩 검사해서 새로운 파일을 Zotero에 업로드한다.
-
+  
+## Docker 쓰기
+* 초기 실행 (또는 다 갈아 엎고 싶을 때)
+  * 한번 실행 후 종료된다
+  * docker run \
+  --rm \
+  --name zotsyncfolder_construct \
+  --volume /media/kdm/kasumi_sshfs/97_webdav:/mount \
+  kim135797531/zotsyncfolder_construct
+* 갱신 감시기
+  * docker run \
+  --rm \
+  --name zotsyncfolder_watcher \
+  --volume /media/kdm/kasumi_sshfs/97_webdav:/mount \
+  kim135797531/zotsyncfolder_watcher
+* 갱신 알리미 (Node.js)  
+  * docker run \
+  --rm \
+  --name zotsyncfolder_notifier \
+  --volume /media/kdm/kasumi_sshfs/97_webdav:/mount \
+  kim135797531/zotsyncfolder_notifier
+  
 ## 현재 가능한 것
 
 * 첫 초기화
