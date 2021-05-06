@@ -28,6 +28,7 @@ if load_from_cache:
 else:
     global_metadata = dict()
     global_metadata['last_modified_version'] = get_last_modified_version()
+    os.makedirs(json_folder, exist_ok=True)
     f = open(global_metadata_json, 'w')
     print(json.dumps(global_metadata, indent=4), file=f)
     f.close()

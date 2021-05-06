@@ -278,6 +278,7 @@ def pull_changed_list_from_zotero(global_metadata, collection_metadatas, item_me
                 if set(item_metadatas[item_key]['collections']) != set(item['data']['collections']):
                     # TODO: 컬렉션 정보 바뀜!! 아직 지원 안함. 프로그램 강종함.
                     print("컬렉션 정보 바뀜!! 아직 지원 안함. 프로그램 강종함.")
+                    print(item_metadatas['data']['collections'])
                     exit(1)
                 item_metadatas[item_key]['version'] = item['version']
             else:
@@ -322,6 +323,44 @@ def pull_changed_list_from_zotero(global_metadata, collection_metadatas, item_me
         print(f'[{time.ctime()}] Zotero의 DB 갱신 사항 변화 없음')
 
 
+def detect_local_changed():
+    # zotero 파일 변화 감지
+    try:
+        notifier_metadatas = json.load(open(notifier_metadatas_json, 'r'))
+        if 'last_modified_version' in notifier_metadatas:
+            received_update_signal = int(global_metadata['last_modified_version']) < int(notifier_metadatas['last_modified_version'])
+            if received_update_signal:
+                pull_changed_list_from_zotero(global_metadata, collection_metadatas, item_metadatas)
+                notifier_metadatas = {
+                    'last_modified_version': global_metadata['last_modified_version']
+                }
+                f = open(notifier_metadatas_json, 'w')
+                print(json.dumps(notifier_metadatas, indent=4), file=f)
+                f.close()
+    except json.JSONDecodeError:
+        print("notify metadata 읽기 실패. skip함")
+    # zotero 파일 변화 감지 끝 ============================================
+
+def detect_server_changed():
+    # zotsyncfolder 파일 변화 감지
+    update_item_keysets = get_changed_files(collection_metadatas, item_metadatas)
+
+    if len(update_item_keysets) > 10:
+        print("변경이 10개 이상이라니! 이건 뭔가 잘못됐다.")
+        exit(1)
+
+    for update_item_keyset in update_item_keysets:
+        upload_changed_file(collection_metadatas, item_metadatas, update_item_keyset)
+
+    if len(update_item_keysets) > 0:
+        f = open(item_metadatas_json, 'w')
+        print(json.dumps(item_metadatas, indent=4), file=f)
+        f.close()
+        print(f'[{time.ctime()}] 아이패드의 갱신 사항 **업뎃 완료**')
+    else:
+        print(f'[{time.ctime()}] 아이패드의 갱신 사항 변화 없음')
+
+
 if __name__ == "__main__":
     global_metadata = json.load(open(global_metadata_json, 'r'))
 
@@ -344,42 +383,14 @@ if __name__ == "__main__":
         print(json.dumps(notifier_metadatas, indent=4), file=f)
         f.close()
 
+    timer_count = 0
     while True:
-        # zotero 파일 변화 감지 시작 ============================================
-        try:
-            notifier_metadatas = json.load(open(notifier_metadatas_json, 'r'))
-            if 'last_modified_version' in notifier_metadatas:
-                received_update_signal = int(global_metadata['last_modified_version']) < int(notifier_metadatas['last_modified_version'])
-                if received_update_signal:
-                    pull_changed_list_from_zotero(global_metadata, collection_metadatas, item_metadatas)
-                    notifier_metadatas = {
-                        'last_modified_version': global_metadata['last_modified_version']
-                    }
-                    f = open(notifier_metadatas_json, 'w')
-                    print(json.dumps(notifier_metadatas, indent=4), file=f)
-                f.close()
-        except JSONDecodeError:
-            print("notify metadata 읽기 실패. skip함")
+        detect_local_changed()
+        if timer_count == 0:
+            detect_server_changed()
 
-        # zotero 파일 변화 감지 끝 ============================================
-
-        # zotsyncfolder 파일 변화 감지 시작 ============================================
-        update_item_keysets = get_changed_files(collection_metadatas, item_metadatas)
-
-        if len(update_item_keysets) > 10:
-            print("변경이 10개 이상이라니! 이건 뭔가 잘못됐다.")
-            break
-
-        for update_item_keyset in update_item_keysets:
-            upload_changed_file(collection_metadatas, item_metadatas, update_item_keyset)
-
-        if len(update_item_keysets) > 0:
-            f = open(item_metadatas_json, 'w')
-            print(json.dumps(item_metadatas, indent=4), file=f)
-            f.close()
-            print(f'[{time.ctime()}] 아이패드의 갱신 사항 **업뎃 완료**')
-        else:
-            print(f'[{time.ctime()}] 아이패드의 갱신 사항 변화 없음')
-
-        # zotsyncfolder 파일 변화 감지 끝 ============================================
+        timer_count += 1
+        if timer_count == 5:
+            timer_count = 0
+        
         time.sleep(60)
