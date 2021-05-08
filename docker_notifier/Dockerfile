@@ -33,7 +33,14 @@ RUN ALPINE_GLIBC_BASE_URL="https://github.com/sgerrand/alpine-pkg-glibc/releases
         "$ALPINE_GLIBC_BIN_PACKAGE_FILENAME" \
         "$ALPINE_GLIBC_I18N_PACKAGE_FILENAME"
 
+RUN apk add --no-cache
+
+RUN apk --update add tzdata && \
+    cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
+    echo "Asia/Seoul" >> /etc/timezone
+    
 ENV LANG=C.UTF-8
+ENV TZ=Asia/Seoul
 ENV NODE_ENV=production
 #ENV NPM_CONFIG_PREFIX=/home/node/.npm-global
 #ENV PATH=$PATH:/home/node/.npm-global/bin

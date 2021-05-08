@@ -45,6 +45,11 @@ RUN wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86
 # Build dependencies
 RUN apk add --no-cache git
 
+RUN apk --update add tzdata && \
+    cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
+    echo "Asia/Seoul" >> /etc/timezone
+
+ENV TZ=Asia/Seoul
 ENV CONDA_ENV_NAME=zotsyncfolder
 ENV ZOTSYNCFOLDER_HOME=/mount/zotsyncfolder
 
